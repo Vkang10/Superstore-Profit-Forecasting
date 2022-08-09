@@ -1,0 +1,103 @@
+getwd() 
+
+install.packages("zoo")
+library(zoo)
+library(lubridate)
+library(dplyr)
+library(psych)
+library(openxlsx)
+library(data.table)
+library(randomForest)
+library(gbm)
+library(caret)
+library(mltools)
+library(e1071)
+library(glmnet)
+library(rpart)
+
+
+Superstore <- read.xlsx("C:\\Users\\dell\\Desktop\\746 Data Science\\DataScience_MachineLearning\\Superstore.xlsx")
+date <-read.csv("C:\\Users\\dell\\Desktop\\746 Data Science\\DataScience_MachineLearning\\Superstore_date.csv",header = TRUE,sep=",")
+Superstore$OrderDate <- date$Order.Date
+Superstore$ShipDate <- date$Ship.Date
+Superstore$OrderDate <- mdy(Superstore$OrderDate)
+Superstore$ShipDate <- mdy(Superstore$ShipDate)
+
+#############create new variable###############
+#Year and Month variables for order date:
+Superstore$OrderYear<-year(Superstore$OrderDate)
+Superstore$OrderMonth<-month(Superstore$OrderDate)
+
+# create seasonality variable for order date
+yq <- as.yearqtr(as.yearmon(Superstore$OrderDate, "%m/%d/%Y") + 1/12)
+Superstore$Season <- factor(format(yq, "%q"), levels = 1:4, 
+                            labels = c("winter", "spring", "summer", "fall"))
+
+#season dummy:
+Superstore$Spring=ifelse(Superstore$Season=="spring",1,0)
+Superstore$Summer=ifelse(Superstore$Season=="summer",1,0)
+Superstore$Fall=ifelse(Superstore$Season=="fall",1,0)
+Superstore$Winter=ifelse(Superstore$Season=="winter",1,0)
+
+
+#Freq variable:frequency of repeat purchase for customers
+table(Superstore$Customer.ID)
+Superstore <- data.table(Superstore)
+Superstore[, `freq` := .N, by = Customer.ID]
+
+#Ship mode dummy:
+Superstore$ship_1st=ifelse(Superstore$Ship.Mode=="First Class",1,0)
+Superstore$ship_2nd=ifelse(Superstore$Ship.Mode=="Second Class",1,0)
+Superstore$ship_standard=ifelse(Superstore$Ship.Mode=="Standard Class",1,0)
+Superstore$ship_sameday=ifelse(Superstore$Ship.Mode=="Same Day",1,0)
+
+#Segment dummy:
+Superstore$seg_cus=ifelse(Superstore$Segment=="Consumer",1,0)
+Superstore$seg_cor=ifelse(Superstore$Segment=="Corporate",1,0)
+Superstore$seg_home=ifelse(Superstore$Segment=="Home Office",1,0)
+
+#Region dummy:"South""West""Central""East"   
+Superstore$South=ifelse(Superstore$Region=="South",1,0)
+Superstore$West=ifelse(Superstore$Region=="West",1,0)
+Superstore$Central=ifelse(Superstore$Region=="Central",1,0)
+Superstore$East=ifelse(Superstore$Region=="East",1,0)
+
+#Big city dummy:
+Superstore$NY=ifelse(Superstore$City=="New York City",1,0)
+Superstore$LA=ifelse(Superstore$City=="Los Angeles",1,0)
+
+#Category dummy:
+Superstore$cat_fur=ifelse(Superstore$Category=="Furniture",1,0)
+Superstore$cat_off=ifelse(Superstore$Category=="Office Supplies",1,0)
+Superstore$cat_tech=ifelse(Superstore$Category=="Technology",1,0)
+
+str(Superstore)
+names(Superstore)<-str_replace_all(names(Superstore), "-",".")
+
+#Subcategory dummy:
+table1=table(Superstore$Sub.Category)
+mytable=sort(table1,decreasing=TRUE)
+table2=round(prop.table(mytable)*100,2)
+sort(table2,decreasing=TRUE)
+
+table1=table(Superstore$State)
+sort(table1,decreasing=TRUE)
+table1=table(Superstore$City)
+sort(table1,decreasing=TRUE)
+
+# create dummies for major classes (the number of value larger than 500), the remaining minority classes are merged to "others"
+Superstore$sub_Binders=ifelse(Superstore$Sub.Category=="Binders",1,0)
+Superstore$sub_Paper=ifelse(Superstore$Sub.Category=="Paper",1,0)
+Superstore$sub_Furnishings=ifelse(Superstore$Sub.Category=="Furnishings",1,0)
+Superstore$sub_Phones=ifelse(Superstore$Sub.Category=="Phones",1,0)
+Superstore$sub_Storage=ifelse(Superstore$Sub.Category=="Storage",1,0)
+Superstore$sub_Art=ifelse(Superstore$Sub.Category=="Art",1,0)
+Superstore$sub_Accessories=ifelse(Superstore$Sub.Category=="Accessories",1,0)
+Superstore$sub_Chairs=ifelse(Superstore$Sub.Category=="Chairs",1,0)
+Superstore$sub_Others=ifelse(Superstore$Sub.Category=="Labels"|Superstore$Sub.Category=="Appliances"|
+                               Superstore$Sub.Category=="Tables"|Superstore$Sub.Category=="Envelopes"|
+                               Superstore$Sub.Category=="Bookcases"|Superstore$Sub.Category=="Fasteners"|
+                               Superstore$Sub.Category=="Supplies"|Superstore$Sub.Category=="Machines"|
+                               Superstore$Sub.Category=="Copiers",1,0)
+View(Superstore)
+str(Superstore)
